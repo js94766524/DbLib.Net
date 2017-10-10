@@ -13,19 +13,9 @@ namespace DBLib.Attributes
 
         public DbType DataType { get; private set; }
 
-        //public int Length { get; set; }
-
         public bool PrimaryKey { get; set; }
 
         public bool AutoIncrement { get; set; }
-
-        //public bool Unique { get; set; }
-
-        //public bool NotNull { get; set; }
-
-        //public object Default { get; set; }
-
-        //public int Version { get; set; }
 
         public ColumnAttribute(string name, DbType dataType)
         {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -369,36 +370,53 @@ namespace DBLib.Attributes
         {
             StringBuilder json = new StringBuilder("{");
 
-            foreach(var kv in dict)
+            foreach (var kv in dict)
             {
                 PropertyInfo p = kv.Key;
                 ColumnAttribute col = kv.Value;
                 json.Append($"\"{col.Name}\"=");
                 var value = p.GetValue(model, null);
-
-                if (value == null)
-                {
-                    json.Append("null,");
-                    continue;
-                }
-                else if(value is string)
-                {
-                    json.Append($"\"{value}\",");
-                }
-                else if (double.TryParse(value.ToString(), out double d))
-                {
-                    json.Append(value.ToString()).Append(",");
-                }
-                else
-                {
-                    json.Append($"\"{value}\",");
-                }
+                json.Append(TransObjToJsonValueStr(value)).Append(",");
             }
             if (json.Length > 1) json.Remove(json.Length - 1, 1);
             json.Append("}");
             return json.ToString();
         }
 
+        private static string TransObjToJsonValueStr(object obj )
+        {
+            if (obj == null) return "null";
+            else if (obj is IEnumerable)
+            {
+                StringBuilder sb = new StringBuilder("[");
+                var list = obj as IEnumerable;
+                var enumerator = list.GetEnumerator();
+                bool hasItem = enumerator.MoveNext();
+
+                do
+                {
+                    string itemJson;
+                    try
+                    {
+                        itemJson = TransToJsonString(enumerator.Current);
+                    }
+                    catch
+                    {
+                        itemJson = TransObjToJsonValueStr(enumerator.Current);
+                    }
+                    sb.Append($"{itemJson},");
+                }
+                while (enumerator.MoveNext());
+
+                if (hasItem) sb.Remove(sb.Length - 1, 1);
+                sb.Append("]");
+
+                return sb.ToString();
+            }
+            else if (obj is string) return $"\"{obj.ToString()}\"";
+            else if (double.TryParse(obj.ToString(), out double d)) return obj.ToString();
+            else return $"\"{obj.ToString()}\"";
+        }
         #endregion
     }
 }
