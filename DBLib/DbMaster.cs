@@ -11,25 +11,28 @@ namespace DBLib
 {
     public class DbMaster
     {
-        public DbProviderFactory Provider { get; private set; }
+        private DbConnectionStringBuilder connParams;
+        public DbProvider Provider { get; private set; }
+
+        /// <summary>
+        /// 构造
+        /// </summary>
+        public DbMaster( DbProvider provider )
+        {
+            Provider = provider ?? throw new ArgumentNullException("provider");
+            connParams = Provider.Original.CreateConnectionStringBuilder();
+        }
 
         /// <summary>
         /// 数据库链接参数
         /// </summary>
-        public DbConnectionStringBuilder ConnParams { get { return Provider.CreateConnectionStringBuilder(); } }
+        public DbConnectionStringBuilder ConnParams { get { return connParams; } }
 
         /// <summary>
         /// 数据库链接字符串
         /// </summary>
         public string ConnString { get { return ConnParams.ToString(); } }
 
-        /// <summary>
-        /// 构造
-        /// </summary>
-        public DbMaster(DbProviderFactory provider)
-        {
-            Provider = provider ?? throw new ArgumentNullException("provider");
-        }
 
         #region 基本增删改查方法
 
@@ -38,15 +41,24 @@ namespace DBLib
         /// </summary>
         public DbConnection GetOpenedConn()
         {
-            var conn = Provider.CreateConnection();
+            var conn = Provider.Original.CreateConnection();
             if (conn.TryOpen()) return conn;
             else throw new Exception("无法打开数据库。");
         }
 
         /// <summary>
+        /// 创建数据库参数
+        /// </summary>
+        /// <returns>数据库参数对象</returns>
+        public DbParameter CreateParameter()
+        {
+            return Provider.Original.CreateParameter();
+        }
+
+        /// <summary>
         /// 执行非查询类sql语句
         /// </summary>
-        public int ExecuteNonQuery(string sql, params DbParameter[] parameters)
+        public int ExecuteNonQuery( string sql, params DbParameter[] parameters )
         {
             var conn = GetOpenedConn();
             DbCommand cmd = conn.CreateCommand();
@@ -58,10 +70,10 @@ namespace DBLib
         }
 
         /// <summary>
-        /// 批量执行带参数的费查询类sql语句
+        /// 批量执行带参数的查询类sql语句
         /// </summary>
         /// <param name="dict">key:sql语句 value:DbParameter数组</param>
-        public void ExecuteNonQuerys(Dictionary<string, DbParameter[]> dict)
+        public void ExecuteNonQuerys( Dictionary<string, DbParameter[]> dict )
         {
             var conn = GetOpenedConn();
             var trans = conn.BeginTransaction();
@@ -93,14 +105,14 @@ namespace DBLib
         /// <summary>
         /// 执行查询类sql语句，返回DataSet
         /// </summary>
-        public DataSet ExecuteDataSet(string sql)
+        public DataSet ExecuteDataSet( string sql )
         {
             DataSet set = new DataSet();
             var conn = GetOpenedConn();
             DbCommand cmd = conn.CreateCommand();
             cmd.CommandText = sql;
 
-            DbDataAdapter adapter = Provider.CreateDataAdapter();
+            DbDataAdapter adapter = Provider.Original.CreateDataAdapter();
             adapter.SelectCommand = cmd;
             adapter.Fill(set);
             conn.Close();
@@ -110,7 +122,7 @@ namespace DBLib
         /// <summary>
         /// 执行查询类sql语句，返回DataReader
         /// </summary>
-        public IDataReader ExecuteDataReader(string sql)
+        public IDataReader ExecuteDataReader( string sql )
         {
             var conn = GetOpenedConn();
             DbCommand cmd = conn.CreateCommand();
@@ -121,7 +133,7 @@ namespace DBLib
         /// <summary>
         /// 执行scalar查询
         /// </summary>
-        public object ExecuteScalar(string sql)
+        public object ExecuteScalar( string sql )
         {
             var conn = GetOpenedConn();
             DbCommand cmd = conn.CreateCommand();
@@ -131,6 +143,23 @@ namespace DBLib
             return obj;
         }
 
+        /// <summary>
+        /// 执行insert语句，并返回插入数据的id
+        /// </summary>
+        /// <param name="sql">insert sql</param>
+        /// <param name="parameters">参数</param>
+        /// <returns>插入数据的id</returns>
+        public long ExecuteInsert( string sql, params DbParameter[] parameters )
+        {
+            var conn = GetOpenedConn();
+            DbCommand cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            if (parameters != null) cmd.Parameters.AddRange(parameters);
+            int i = cmd.ExecuteNonQuery();
+            long id = i > 0 ? Provider.GetLastInsertedId(conn) : -1;
+            conn.Close();
+            return id;
+        }
         #endregion
 
         #region 使用Attribute技术反射的方法
@@ -140,7 +169,7 @@ namespace DBLib
         /// </summary>
         /// <typeparam name="D">需要标注TableAttribute且拥有标注ColumnAttribute的属性</typeparam>
         /// <param name="modelList">model集合</param>
-        public void InsertModelList<D>(IEnumerable<D> modelList)
+        public void InsertModelList<D>( IEnumerable<D> modelList )
         {
             if (modelList.Count() == 0) return;
 
@@ -165,7 +194,7 @@ namespace DBLib
         /// <typeparam name="D">需要标注TableAttribute且拥有标注ColumnAttribute的属性</typeparam>
         /// <typeparam name="P">DbParameter实现类</typeparam>
         /// <param name="modelList">model集合</param>
-        public void InsertModelList_UseParameter<D>(IEnumerable<D> modelList)
+        public void InsertModelList_UseParameter<D>( IEnumerable<D> modelList )
         {
             Type type = modelList.First().GetType();
             TableAttribute tableAttr = AttributeFunc.GetTableAttribute(type);
@@ -179,7 +208,7 @@ namespace DBLib
         /// </summary>
         /// <typeparam name="D">需要标注TableAttribute且拥有标注ColumnAttribute的属性</typeparam>
         /// <param name="modelList">model集合</param>
-        public void UpdateModelList<D>(IEnumerable<D> modelList)
+        public void UpdateModelList<D>( IEnumerable<D> modelList )
         {
             if (modelList.Count() == 0) return;
 
@@ -204,7 +233,7 @@ namespace DBLib
         /// <typeparam name="D">需要标注TableAttribute且拥有标注ColumnAttribute的属性</typeparam>
         /// <typeparam name="P">DbParameter实现类</typeparam>
         /// <param name="modelList">model集合</param>
-        public void UpdateModelList_UseParameter<D>(IEnumerable<D> modelList)
+        public void UpdateModelList_UseParameter<D>( IEnumerable<D> modelList )
         {
             Type type = modelList.First().GetType();
             TableAttribute tableAttr = AttributeFunc.GetTableAttribute(type);
@@ -221,7 +250,7 @@ namespace DBLib
         /// <param name="sql">SQL语句</param>
         /// <param name="modelList">model集合</param>
         /// <param name="dict">属性字段标注集合</param>
-        public void LargeAmoutInsertOrUpdate<D>(string sql, IEnumerable<D> modelList, Dictionary<PropertyInfo, ColumnAttribute> dict)
+        public void LargeAmoutInsertOrUpdate<D>( string sql, IEnumerable<D> modelList, Dictionary<PropertyInfo, ColumnAttribute> dict )
         {
             if (modelList.Count() == 0) return;
 
@@ -236,7 +265,7 @@ namespace DBLib
                 foreach (var item in modelList)
                 {
                     cmd.Parameters.Clear();
-                    cmd.Parameters.AddRange(AttributeFunc.GetDbParametesr(item, Provider, dict));
+                    cmd.Parameters.AddRange(AttributeFunc.GetDbParametesr(item, Provider.Original, dict));
                     cmd.ExecuteNonQuery();
                 }
 
@@ -259,7 +288,7 @@ namespace DBLib
         /// <typeparam name="D">需要标注TableAttribute且拥有标注ColumnAttribute的属性</typeparam>
         /// <param name="condition">条件语句，例如："where AGE > 20"</param>
         /// <returns>model集合</returns>
-        public List<D> QueryModelList<D>(string condition)
+        public List<D> QueryModelList<D>( string condition )
         {
             Type type = typeof(D);
             TableAttribute tableAttr = AttributeFunc.GetTableAttribute(type);

@@ -44,6 +44,7 @@
     <Compile Include="Attributes\TableAttribute.cs" />
     <Compile Include="DbMaster.cs" />
     <Compile Include="DbConnectionExtends.cs" />
+    <Compile Include="DbProvider.cs" />
     <Compile Include="Model.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
