@@ -325,7 +325,7 @@ namespace DBLib.Attributes
 
         /// <summary>
         /// 通过Attribute来映射数据库表的一行数据到Model实例。
-        /// <para>推荐使用GetModelList(DataTable)方法或者GetModel(DataRow,Dictionary)代替。</para>
+        /// <para>推荐使用TransToModelList(DataTable)方法或者TransToModel(DataRow,Dictionary)代替。</para>
         /// </summary>
         public static T TransToModel<T>( DataRow row )
         {
@@ -344,78 +344,38 @@ namespace DBLib.Attributes
 
             foreach (var keyValue in dict)
             {
-                var v = Convert.ChangeType(row[keyValue.Value.Name], keyValue.Key.PropertyType);
+                //如果是 bool? 这类Nullable类型，要取得基础类型进行转换
+                Type t = keyValue.Key.PropertyType;
+                if (t.IsGenericType
+                    && t.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    t = t.GetGenericArguments()[0];
+
+                object v;
+                //如果是枚举类型，Convert.changeType会抛出异常
+                if (typeof(Enum).IsAssignableFrom(t))
+                {
+                    v = Enum.Parse(t, row[keyValue.Value.Name].ToString(),true);
+                }
+                else v = Convert.ChangeType(row[keyValue.Value.Name], t);
+
                 keyValue.Key.SetValue(obj, v, null);
+
             }
 
             return obj;
         }
-
-        /// <summary>
-        /// 通过Attribute将model对象转换为Json字符串
-        /// </summary>
-        /// <param name="model">数据模型对象</param>
-        /// <returns>Json字符串</returns>
-        public static string TransToJsonString( object model )
+        
+        public static string ToString( object model )
         {
             Type type = model.GetType();
-            var dict = GetColumnDictionary(type);
-            return TransToJsonString(model, dict);
-        }
-
-        /// <summary>
-        /// 通过Attribute将model对象转换为Json字符串
-        /// </summary>
-        public static string TransToJsonString( object model, Dictionary<PropertyInfo, ColumnAttribute> dict )
-        {
-            StringBuilder json = new StringBuilder("{");
-
-            foreach (var kv in dict)
+            Dictionary<PropertyInfo, ColumnAttribute> dict = GetColumnDictionary(type);
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(type.FullName);
+            foreach(var keyValue in dict)
             {
-                PropertyInfo p = kv.Key;
-                ColumnAttribute col = kv.Value;
-                json.Append($"\"{col.Name}\"=");
-                var value = p.GetValue(model, null);
-                json.Append(TransObjToJsonValueStr(value)).Append(",");
+                sb.Append(keyValue.Value.Name).Append(":").Append(keyValue.Key.GetValue(model).ToString()).AppendLine();
             }
-            if (json.Length > 1) json.Remove(json.Length - 1, 1);
-            json.Append("}");
-            return json.ToString();
-        }
-
-        private static string TransObjToJsonValueStr(object obj )
-        {
-            if (obj == null) return "null";
-            else if (obj is IEnumerable)
-            {
-                StringBuilder sb = new StringBuilder("[");
-                var list = obj as IEnumerable;
-                var enumerator = list.GetEnumerator();
-                bool hasItem = enumerator.MoveNext();
-
-                do
-                {
-                    string itemJson;
-                    try
-                    {
-                        itemJson = TransToJsonString(enumerator.Current);
-                    }
-                    catch
-                    {
-                        itemJson = TransObjToJsonValueStr(enumerator.Current);
-                    }
-                    sb.Append($"{itemJson},");
-                }
-                while (enumerator.MoveNext());
-
-                if (hasItem) sb.Remove(sb.Length - 1, 1);
-                sb.Append("]");
-
-                return sb.ToString();
-            }
-            else if (obj is string) return $"\"{obj.ToString()}\"";
-            else if (double.TryParse(obj.ToString(), out double d)) return obj.ToString();
-            else return $"\"{obj.ToString()}\"";
+            return sb.ToString();
         }
         #endregion
     }

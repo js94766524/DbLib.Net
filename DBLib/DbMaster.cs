@@ -42,6 +42,7 @@ namespace DBLib
         public DbConnection GetOpenedConn()
         {
             var conn = Provider.Original.CreateConnection();
+            conn.ConnectionString = ConnString;
             if (conn.TryOpen()) return conn;
             else throw new Exception("无法打开数据库。");
         }
@@ -149,14 +150,14 @@ namespace DBLib
         /// <param name="sql">insert sql</param>
         /// <param name="parameters">参数</param>
         /// <returns>插入数据的id</returns>
-        public long ExecuteInsert( string sql, params DbParameter[] parameters )
+        public int ExecuteInsert( string sql, params DbParameter[] parameters )
         {
             var conn = GetOpenedConn();
             DbCommand cmd = conn.CreateCommand();
             cmd.CommandText = sql;
             if (parameters != null) cmd.Parameters.AddRange(parameters);
             int i = cmd.ExecuteNonQuery();
-            long id = i > 0 ? Provider.GetLastInsertedId(conn) : -1;
+            int id = i > 0 ? Provider.GetLastInsertedId(conn) : -1;
             conn.Close();
             return id;
         }

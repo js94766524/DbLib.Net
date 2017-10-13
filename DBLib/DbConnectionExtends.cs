@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using System.Windows.Forms;
 
 namespace DBLib
 {
@@ -19,8 +20,9 @@ namespace DBLib
                 if (conn.State != System.Data.ConnectionState.Open) conn.Open();
                 return true;
             }
-            catch
+            catch(Exception e)
             {
+                MessageBox.Show(e.ToString());
                 return false;
             }
         }
