@@ -11,7 +11,7 @@ namespace ORZ
     /// </summary>
     public class TableInfo
     {
-        public string Database { get; set; }
+        public string DBName { get; set; }
         public string TableName { get; set; }
     }
 }

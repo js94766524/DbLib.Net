@@ -12,6 +12,7 @@ namespace ORZ
     public static class DBModel
     {
         #region 基本方法，获取表信息和列信息
+
         /// <summary>
         /// 获取Attribute标注的表信息，若未进行标注则用类名作为表名
         /// </summary>
@@ -23,7 +24,7 @@ namespace ORZ
             if (tableAttrs.Length == 1)
             {
                 TableAttribute ta = tableAttrs[0] as TableAttribute;
-                info.Database = ta.DBName;
+                info.DBName = ta.DBName;
                 if (ta.TableName != null)
                 {
                     info.TableName = ta.TableName;
@@ -33,8 +34,9 @@ namespace ORZ
             else
             {
                 info.TableName = type.Name;
-                info.Database = "default";
+                info.DBName = "default";
             }
+            if (!DB.Databases.ContainsKey(info.DBName)) throw new ArgumentException("未找到名为" + info.DBName + "的数据库，请修改" + type.FullName + "的TableAttribute.DBName属性");
             return info;
         }
 
@@ -116,9 +118,11 @@ namespace ORZ
 
             return columnList;
         }
+
         #endregion
 
         #region 生成增删改SQL语句的方法
+
         /// <summary>
         /// 生成插入SQL
         /// </summary>
@@ -219,9 +223,11 @@ namespace ORZ
             parameters = paramList.ToArray();
             return $"DELETE FROM {tInfo.TableName} WHERE {conditionStr};";
         }
+
         #endregion
 
         #region 对包外公开的增删改方法
+
         /// <summary>
         /// 将该Model数据插入数据库
         /// </summary>
@@ -229,8 +235,7 @@ namespace ORZ
         public static bool Insert( this object model )
         {
             TableInfo tInfo = model.GetTableInfo();
-            if (!DB.Databases.ContainsKey(tInfo.Database)) throw new ArgumentException("未找到名为" + tInfo.Database + "的数据库，请修改" + model.GetType().FullName + "的TableAttribute.DBName属性");
-            DB db = DB.Databases[tInfo.Database];
+            DB db = DB.Databases[tInfo.DBName];
             try
             {
                 int i = db.ExecuteNonQuery(model.GetInsertSql(db, out DbParameter[] parameters, tInfo), parameters);
@@ -250,8 +255,7 @@ namespace ORZ
         public static bool Update( this object model )
         {
             TableInfo tInfo = model.GetTableInfo();
-            if (!DB.Databases.ContainsKey(tInfo.Database)) throw new ArgumentException("未找到名为" + tInfo.Database + "的数据库，请修改" + model.GetType().FullName + "的TableAttribute.DBName属性");
-            DB db = DB.Databases[tInfo.Database];
+            DB db = DB.Databases[tInfo.DBName];
             try
             {
                 int i = db.ExecuteNonQuery(model.GetUpdateSql(db, out DbParameter[] parameters, tInfo), parameters);
@@ -271,8 +275,7 @@ namespace ORZ
         public static bool Delete( this object model )
         {
             TableInfo tInfo = model.GetTableInfo();
-            if (!DB.Databases.ContainsKey(tInfo.Database)) throw new ArgumentException("未找到名为" + tInfo.Database + "的数据库，请修改" + model.GetType().FullName + "的TableAttribute.DBName属性");
-            DB db = DB.Databases[tInfo.Database];
+            DB db = DB.Databases[tInfo.DBName];
             try
             {
                 int i = db.ExecuteNonQuery(model.GetDeleteSql(db, out DbParameter[] parameters), parameters);
@@ -284,6 +287,7 @@ namespace ORZ
                 return false;
             }
         }
+
         #endregion
     }
 }

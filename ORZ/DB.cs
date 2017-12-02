@@ -20,10 +20,10 @@ namespace ORZ
         /// 打开数据库
         /// </summary>
         /// <param name="Provider">数据库类型对应的Provider</param>
-        /// <param name="connectionString">数据库链接字符串</param>
+        /// <param name="ConnectionString">数据库链接字符串</param>
         /// <param name="DBName">数据库名称，和Model中<see cref="TableAttribute.DBName"/>对应。默认为default</param>
         /// <returns><see cref="DB"/>对象</returns>
-        public static DB Open( DbProviderFactory Provider, string connectionString, string DBName = "default" )
+        public static DB Open( DbProviderFactory Provider, string ConnectionString, string DBName = "default" )
         {
             DB db = null;
             if (Databases.ContainsKey(DBName)) db = Databases[DBName];
@@ -33,16 +33,29 @@ namespace ORZ
                 throw new ArgumentNullException("Provider");
             db.Provider = Provider;
 
-            if (string.IsNullOrWhiteSpace(db.ConnectionString) && string.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrWhiteSpace(db.ConnectionString) && string.IsNullOrWhiteSpace(ConnectionString))
                 throw new ArgumentNullException("Connection String");
-            
+
             using (var conn = Provider.CreateConnection())
             {
-                conn.ConnectionString = connectionString;
+                conn.ConnectionString = ConnectionString;
                 conn.Open();
-                db.ConnectionString = connectionString;
+                db.ConnectionString = ConnectionString;
             }
             return db;
+        }
+
+        /// <summary>
+        /// 打开数据库
+        /// </summary>
+        /// <param name="ProviderName">数据库类型对应的ProviderName</param>
+        /// <param name="ConnectionString">数据库链接字符串</param>
+        /// <param name="DBName">数据库名称，和Model中<see cref="TableAttribute.DBName"/>对应。默认为default</param>
+        /// <returns><see cref="DB"/>对象</returns>
+        public static DB Open( string ProviderName, string ConnectionString, string DBName = "default" )
+        {
+            var factory = DbProviderFactories.GetFactory(ProviderName);
+            return Open(factory, ConnectionString, DBName);
         }
 
         /// <summary>
@@ -70,7 +83,14 @@ namespace ORZ
 
         #endregion
 
+        /// <summary>
+        /// 数据库链接字符串
+        /// </summary>
         private string ConnectionString { get; set; }
+
+        /// <summary>
+        /// 数据库实现的DbProviderFactory
+        /// </summary>
         public DbProviderFactory Provider { get; private set; }
 
         /// <summary>
@@ -82,8 +102,9 @@ namespace ORZ
             conn.ConnectionString = ConnectionString;
             return conn;
         }
-        
-        #region 数据库操作
+
+        #region 基本数据库操作
+
         /// <summary>
         /// 执行非查询类sql语句，不关闭DbConnection
         /// </summary>
@@ -186,6 +207,7 @@ namespace ORZ
                 return ExecuteScalar(sql, conn, parameters);
             }
         }
+
         #endregion
     }
 }

@@ -30,7 +30,6 @@ namespace ORZ
                         i.PropertyInfo.SetValue(model, v);
                     }
                 }
-                else Debug.WriteLine("在" + model.GetType().FullName + "中未找到" + col.ColumnName + "列对应的属性");
             }
             return model;
         }
